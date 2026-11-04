@@ -13,7 +13,7 @@ Open this repository in a **GitHub Codespace** (Code → Codespaces → Create c
 | `seeds/` | starting inputs for the fuzzer |
 | `build/fuzz_*` | the harnesses compiled with AFL++'s compiler (for coverage) and AddressSanitizer (so memory errors crash loudly). See `Makefile`. |
 | `results/` | runs we recorded earlier, longer than we have time for in class |
-| `tcpdump/crashes/` | capture files that crash a real program, tcpdump 4.9.2 |
+| `~/fuzzing_tcpdump/` | a real program, tcpdump 4.9.2, set up as in [Fuzzing101 exercise 3](https://github.com/antonio-morales/Fuzzing101/tree/main/Exercise%203) |
 | `scripts/` | **our helpers, not part of AFL++** |
 
 ### The library: `target/minilib.c`
@@ -44,15 +44,16 @@ The status screen needs a terminal of at least 80×25: drag the terminal panel b
 | Re-run one input by hand | `build/fuzz_ini < <file>` |
 | Look at an input's bytes | `xxd <file>` |
 | Debug one input | `gdb -q --args build/fuzz_ini`, then `break minilib.c:92`, `run < <file>`, `bt`, `print klen` |
+| Rebuild after editing `target/` | `make` |
 
 **Our helpers (`scripts/`):**
 
 | What | Command |
 |---|---|
-| One line per crash: error kind + where | `scripts/triage.sh ini results/ini_run_a/default/crashes` |
+| Re-run every crash, show what went wrong and where | `scripts/triage.sh ini results/ini_run_a/default/crashes` |
 | Coverage over time, as a picture | `scripts/plot.py coverage.png results/ini_run_a results/ini_trunc ...` |
 
-`plot.py` replays each run's `queue/` through AFL++'s `afl-showmap` to count edges second by second. AFL++'s own `plot_data` is too coarse to show the first minute. The plots are already drawn in `results/coverage.png` and `results/tcpdump.png`.
+`plot.py` replays each run's `queue/` through AFL++'s `afl-showmap` to count edges second by second. AFL++'s own `plot_data` is too coarse to show the first minute. The plot is already drawn in `results/coverage.png`.
 
 ## What AFL++ writes (`runs/<name>/default/`)
 
@@ -66,7 +67,7 @@ The status screen needs a terminal of at least 80×25: drag the terminal panel b
 
 ## The recorded runs (`results/`)
 
-Each ran for 10 minutes on 2 cores, except `tcpdump`, which ran for 1 hour.
+Each ran for 10 minutes on 2 cores.
 
 | Run | Harness | Seeds |
 |---|---|---|
@@ -74,8 +75,6 @@ Each ran for 10 minutes on 2 cores, except `tcpdump`, which ran for 1 hour.
 | `ini_trunc` | `ini_trunc` | `seeds/ini` |
 | `ini_buggy` | `ini_buggy` | `seeds/ini_small` |
 | `checksum` | `checksum` | `seeds/checksum` |
-| `tcpdump` | `tcpdump -vvvvXX -ee -nn -r @@` (no harness: AFL++ passes a file name) | tcpdump's own test captures. Only the stats files are saved. |
-
 ## Activity 1: What should we fuzz, and how?
 
 1. On the slide: which functions would you spend fuzzing time on? For each, what bytes would you feed it, how would you know it failed, and what gets better if the fuzzer finds something?
@@ -87,12 +86,11 @@ Each ran for 10 minutes on 2 cores, except `tcpdump`, which ran for 1 hour.
 1. `ls results/ini_run_a/default/crashes`. How many crash files? How many bugs do you predict?
 2. `scripts/triage.sh ini results/ini_run_a/default/crashes`. How many **different bugs** are there? What rule did you use to group them?
 3. Rank the bugs from most to least severe. Is an `assert` failure a bug? Is a hang (`results/ini_run_a/default/hangs`)?
-4. Pick the heap overflow. Shrink it with `afl-tmin`, then find the root cause with ASAN's report and `gdb`. What's the one-line fix?
-5. **Stretch:** `scripts/triage.sh tcpdump tcpdump/crashes`. How many distinct bugs in real code?
+4. Pick the heap overflow. Shrink it with `afl-tmin`, then find the root cause with ASAN's report and `gdb`. What's the one-line fix? Make it, run `make`, and re-run the crash.
 
 ## Activity 3: When would you stop?
 
 1. Look at the status screen of your own run. Which numbers can you explain? Which can't you?
-2. Open `results/coverage.png` and `results/tcpdump.png`. For each line: keep going, stop, or fix the harness?
+2. Open `results/coverage.png`. For each line: keep going, stop, or fix the harness?
 3. `ini_run_a` and `ini_run_b` are the same command. Why do they differ?
 4. What one thing could the status screen show that would make you confident enough to stop?

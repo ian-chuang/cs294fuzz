@@ -3,11 +3,9 @@
 # Run it in the Codespace, then commit results/.
 #   scripts/record_results.sh [seconds-per-run]
 #
-# results/tcpdump is recorded separately (1 hour), keeping only the stats files:
-#   afl-fuzz -i /opt/src/tcpdump-4.9.2/tests -o runs/tcpdump -s 123 -V 3600 -- tcpdump -vvvvXX -ee -nn -r @@
-#   mkdir -p results/tcpdump/default
-#   cp runs/tcpdump/default/{cmdline,fuzzer_setup,fuzzer_stats,plot_data} results/tcpdump/default/
-#   scripts/plot.py results/tcpdump.png results/tcpdump
+# The tcpdump campaign is run separately, with Fuzzing101 exercise 3's command (several hours):
+#   afl-fuzz -m none -i $HOME/fuzzing_tcpdump/tcpdump-tcpdump-4.9.2/tests/ -o $HOME/fuzzing_tcpdump/out/ -s 123 \
+#     -- $HOME/fuzzing_tcpdump/install/sbin/tcpdump -vvvvXX -ee -nn -r @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 secs=${1:-600}

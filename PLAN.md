@@ -18,35 +18,89 @@ By the end of class, students will be able to:
 
 | Min | Segment | Format |
 |---|---|---|
-| 0–10 | AFL++ walkthrough: everyone starts a live run | hands-on |
-| 10–14 | The study in 4 minutes | lecture |
-| 14–34 | Objective 1: where to fuzz, and harness bugs | groups + pairs |
-| 34–54 | Objective 2: from a folder of crashes to bugs | pairs + demo |
+| 0–2 | One person per group creates a Codespace | hands-on |
+| 2–6 | The study in 4 minutes, while the Codespaces build | lecture |
+| 6–9 | Tour of the Codespace's files | follow along |
+| 9–13 | Run the fuzzer, read the live screen | hands-on |
+| 13–20 | Reproduce a crash by hand: what ASAN is and how to read it | hands-on |
+| 20–37 | Objective 1: where to fuzz, and harness bugs | groups + pairs |
+| 37–54 | Objective 2: from a folder of crashes to bugs, to a fix | pairs + demo |
 | 54–65 | Objective 3: is it progressing, and when do you stop? | vote + pairs |
 | 65–75 | Debate: fuzzing vs. other ways to verify code, then homework | two teams |
 
-## 0–10 · AFL++ walkthrough
+## 0–2 · Create the Codespaces
 
-Everyone, in the Codespace terminal (make the terminal panel big: AFL++ needs 80×25):
+One person per group: github.com/ian-chuang/cs294fuzz → Code → Codespaces → ⋯ → New with options → branch `day2` → Create. The first start takes a few minutes (it compiles tcpdump); `README.md` opens when it's ready. It is free for them (personal accounts get 120 core-hours a month; this uses 2 per hour).
 
-```
-afl-fuzz -i seeds/ini -o runs/live -- build/fuzz_ini
-```
-
-Leave it running; you come back to it in objective 3. Point out on the screen: **corpus count** (Tuesday's "population"), **saved crashes**, **exec speed**, **map density / edges** (coverage). Then 30 seconds on the `Makefile`: the library was rebuilt with `afl-clang-fast` (coverage) and ASAN (memory errors crash loudly). That is the study's "custom instrumentation compilers" point; no separate slide needed.
-
-**Prompt:** "Write down two numbers on this screen you can't explain." Don't answer yet.
-
-## 10–14 · The study
+## 2–6 · The study (while they build)
 
 - 18 interviews; participants from industry and academia, with varied experience and depth of understanding.
 - Fuzzing is uniquely valuable, but a great fit for only a few domains: "file formats, network-based formats, parsing, decoding, deserializing" (P12).
 - Users understand how fuzzers *should* work, but get little feedback on what happens inside: unpredictable and opaque. There is no ground truth for judging a fuzzer or a campaign.
 - Limits (§3.3): self-selected, experienced users; interviews, not observation.
 
-## 14–34 · Objective 1: configuring a fuzzer is mostly choosing the target and writing the harness
+## 6–9 · Tour of the files
 
-**1a. "Where would you spend fuzzing time?" (9 min, groups of 3).** Slide with six functions from an unfamiliar C codebase, declaration plus one line each:
+Three groups: what **we wrote**, what **`make`** built from it, and what **AFL++** wrote.
+
+```
+target/            WE WROTE: the code under test
+  minilib.c          the "library", with planted bugs (parse_ini, checksum, ...)
+  harness_*.c        tiny main()s: read stdin, call one library function
+seeds/             WE WROTE: one small valid starting input per harness
+Makefile           WE WROTE: how to compile target/ into build/
+build/             MAKE BUILT (when the Codespace started): fuzz_ini, fuzz_ini_trunc, ...
+runs/              AFL++ WRITES: your own runs (empty at first)
+results/           AFL++ WROTE, we saved: 10-minute runs recorded before class
+scripts/           WE WROTE, helpers only: triage.sh, plot.py
+```
+
+Open `target/harness_ini.c` (read stdin, copy it, call `parse_ini`) and `seeds/ini/basic.ini`. Say: `build/fuzz_ini` is an ordinary program, and `build/fuzz_ini < seeds/ini/basic.ini` runs it once. The fuzzer does exactly that thousands of times a second with mutated files. One line on the `Makefile`: it compiles with `afl-clang-fast` (adds coverage tracking) and `AFL_USE_ASAN=1` (next segment). That is the study's "custom instrumentation compilers" point.
+
+## 9–13 · Run the fuzzer
+
+Make the terminal panel big (AFL++ needs 80×25), then:
+
+```
+afl-fuzz -i seeds/ini -o runs/live -- build/fuzz_ini
+```
+
+Leave it running; you come back to it in objective 3. Point out: **corpus count** (Tuesday's "population"), **saved crashes**, **exec speed**, **map density / edges** (coverage). Then `ls runs/live/default/` in a second terminal (the + in the terminal panel): `queue/`, `crashes/`, `hangs/`, `fuzzer_stats`.
+
+**Prompt:** "Write down two numbers on this screen you can't explain." Don't answer yet.
+
+## 13–20 · Reproduce a crash by hand: ASAN
+
+**What ASAN is (1 minute).** In C, writing one byte past the end of an array usually does *not* crash: it silently corrupts memory, and the fuzzer would never notice. AddressSanitizer is a compiler option that adds a check before every memory access and a no-go zone around every block of memory. Touch a no-go byte and the program stops at once and reports what happened and where. Cost: about 2× slower.
+
+**A crash you can read (2 min).** Use the recorded run, so everyone sees the same thing:
+
+```
+xxd results/ini_run_a/default/crashes/id:000004*        # 4 bytes: 4=lo
+build/fuzz_ini < results/ini_run_a/default/crashes/id:000004*
+```
+
+ASAN prints `SEGV on unknown address 0x000000000000 ... caused by a READ`, then a stack, innermost first. Skip the libc and `strlen` frames to the first one in our code: `parse_ini target/minilib.c:120`. Line 120 is `strlen(section)`, and `section` is still NULL because `4=lo` is a `key=value` line with no `[section]` before it. Diagnosed from the input alone.
+
+**The bug ASAN exists for (2 min).**
+
+```
+build/fuzz_ini < results/ini_run_a/default/crashes/id:000001*
+```
+
+Three lines tell the story: `heap-buffer-overflow ... WRITE of size 1` (what), `#0 in parse_ini target/minilib.c:92` (where), `located 0 bytes after 8-byte region ... allocated ... minilib.c:90` (whose memory). Ignore the "Shadow bytes" table: ASAN's internal map. Without ASAN this input does not crash at all. The input is 84 bytes of junk (`xxd` it): hold that thought for `afl-tmin` in objective 2.
+
+**The same thing, automated (2 min).** `scripts/triage.sh` is our helper, not AFL++: it runs that same command for each file and keeps those lines.
+
+```
+scripts/triage.sh ini results/ini_run_a/default/crashes/id:000001*
+```
+
+Show it on one file only: running it on the whole folder is objective 2's question.
+
+## 20–37 · Objective 1: configuring a fuzzer is mostly choosing the target and writing the harness
+
+**1a. "Where would you spend fuzzing time?" (8 min, groups of 3).** Slide with six functions from an unfamiliar C codebase, declaration plus one line each:
 
 | Function | What it does |
 |---|---|
@@ -63,10 +117,10 @@ Expected: the first three take untrusted bytes and fail by crashing: fuzz them. 
 
 Reveal: P12's list, then P15: "Even with help ... the way we select functions is not scientific. It's intuition-based." P16 picks functions that "looked interesting".
 
-**1b. The buggy harness (8 min, pairs).**
+**1b. The buggy harness (6 min, pairs).**
 
-1. Show only this line from `scripts/triage.sh ini_buggy results/ini_buggy/default/crashes`:
-   `stack-buffer-overflow  harness_ini_buggy.c:12 in main`
+1. Show only this entry from `scripts/triage.sh ini_buggy results/ini_buggy/default/crashes`:
+   `error: stack-buffer-overflow, WRITE of size 80` / `where: main  target/harness_ini_buggy.c:12`
 2. Ask: "Is this a bug in `parse_ini`?" Show of hands.
 3. Pairs open `target/harness_ini.c`, `harness_ini_trunc.c`, `harness_ini_buggy.c` and find the line at fault.
 4. Reveal P17: "False positive crashes could be occurring from my harness itself."
@@ -75,13 +129,13 @@ Answers: `ini` passes an exact-size heap copy (so over-reads are caught). `ini_t
 
 **1c. Seeds and suggestions (3 min, whole class).**
 
-- "Where would you get starting inputs for tcpdump?" Its own `tests/` folder of capture files, which is what our tcpdump run used. P18 calls test-suite inputs the "best way", since developers "know their code the best".
+- "Where would you get starting inputs for tcpdump?" Its own `tests/` folder of capture files, which is what Fuzzing101 exercise 3 uses. P18 calls test-suite inputs the "best way", since developers "know their code the best".
 - "The most requested feature was automatic harness generation. Just use AI?" Then: "Would you trust an AI-written harness? `ini_buggy` is exactly the harness an AI might write."
 - Limited documentation and switching fuzzers: one slide, one quote, at most 30 seconds. P5: "reading blog posts and experimenting made it hard to tell if I'm doing it right."
 
-## 34–54 · Objective 2: the output is a starting point, not a diagnosis
+## 37–54 · Objective 2: the output is a starting point, not a diagnosis
 
-**2a. Triage (8 min, pairs).**
+**2a. Triage (6 min, pairs).**
 
 1. `ls results/ini_run_a/default/crashes`: 11 files. **"How many bugs?"** Write the guesses on the board.
 2. `scripts/triage.sh ini results/ini_run_a/default/crashes`, then group.
@@ -92,28 +146,29 @@ Answer: 11 crash files are 3 bugs. 5 × SEGV at `minilib.c:120` (a `key=value` l
 
 **2b. Rank by severity (4 min, vote).** Heap overflow, NULL dereference, assert, hang. Expect disagreement; that is the point. Usual order: heap overflow (memory corruption) > NULL dereference (crash, denial of service) > assert (an intended check, but reachable from input) > hang (denial of service, or noise). Reveal P6: "Does a timeout mean there was a bug? Or could there be multiple bugs?" and the four meanings of "false positive": duplicates (P1), a real bug wrongly discarded (P3), not a real vulnerability (P13), caused by the harness (P17).
 
-**2c. From output to root cause, then a fix (7 min).** Instructor demo, then pairs write the fix:
+**2c. From output to root cause, to a fix (7 min).** Instructor demo of the whole chain on the heap overflow from the opening (`id:000001`), with pairs writing the fix at step 4:
 
-1. `afl-tmin -i <heap-overflow crash> -o min.ini -- build/fuzz_ini`, then `xxd min.ini`: a short input with an 8-character key.
-2. `build/fuzz_ini < min.ini`: ASAN says `heap-buffer-overflow ... WRITE of size 1`, first frame in our code `minilib.c:92`.
-3. `gdb -q --args build/fuzz_ini`, `break minilib.c:92`, `run < min.ini`, `print klen`: 8, so `key[klen]` writes one byte past `malloc(8)`.
-4. Pairs: one-line fix (`malloc(INI_KEY_MAX + 1)` at line 90, or `malloc(klen + 1)`).
-5. Reveal P9: "more of a starter. I take that input and use other tools to figure out where the bug is." Count how many tools you used that were not the fuzzer.
+1. **Shrink:** `afl-tmin -i results/ini_run_a/default/crashes/id:000001* -o min.ini -- build/fuzz_ini`, then `xxd min.ini`: 84 bytes of junk become `[0]`, newline, `00000000=` (a section and an 8-character key).
+2. **Reproduce:** `build/fuzz_ini < min.ini`: the same `heap-buffer-overflow` at `minilib.c:92`.
+3. **Inspect:** `gdb -q --args build/fuzz_ini`, `break minilib.c:92`, `run < min.ini`, `print klen`: 8, so `key[klen]` writes one byte past `malloc(8)`.
+4. **Fix:** pairs propose it. Edit `target/minilib.c` line 90 to `malloc(INI_KEY_MAX + 1)`.
+5. **Rebuild and rerun:** `make` (only `build/` changes), then `build/fuzz_ini < min.ini`: no report. Then `scripts/triage.sh ini results/ini_run_a/default/crashes`: the five `minilib.c:92` entries now say "no crash", the other bugs remain. Afterwards: `git checkout target/minilib.c && make`.
+6. Reveal P9: "more of a starter. I take that input and use other tools to figure out where the bug is." Count the tools used that were not the fuzzer: `afl-tmin` is the only AFL++ one.
 
-**Stretch for pairs who finish early: real code.** `scripts/triage.sh tcpdump tcpdump/crashes`: 19 capture files that crash tcpdump 4.9.2 (from tcpdump 4.9.3's regression tests, the release that fixed them). How many distinct bugs? All 19 are heap over-reads, at 17 different lines in 16 functions. The two `icmp-*` files and the two `smb_*` files crash on the same line. The two `bgp-*` files (`print-bgp.c:2345` and `:2354`) and the two `vrrp-*` files (`:146` and `:154`) are in the same function but on different lines: one bug or two? The file names help here, but a fuzzer's crash files have no such names.
+**Stretch for pairs who finish early: real code.** TODO after the Fuzzing101 exercise 3 run (tcpdump 4.9.2, several hours): triage its saved crashes with `scripts/triage.sh tcpdump <crashes folder>`.
 
 ## 54–65 · Objective 3: monitoring, and deciding when to stop
 
 **3a. Back to the live run (2 min).** "What were your two unexplained numbers?" Collect a few. Reveal P12: "Runtime outputs are famously inscrutable ... it's all just abbreviations of things. Nobody knows what the heck they are until you read the source code." Students can stop their run now (Ctrl-C).
 
-**3b. The coverage plots (5 min, vote with fingers).** Open `results/coverage.png` and `results/tcpdump.png`. For each line: 1 = keep going, 2 = stop, 3 = fix the harness.
+**3b. The coverage plots (5 min, vote with fingers).** Open `results/coverage.png`. For each line: 1 = keep going, 2 = stop, 3 = fix the harness.
 
 | Line | What it shows | Reveal |
 |---|---|---|
 | `ini_run_a` vs `ini_run_b` | same command, different curves early, same end (48 edges) | P14: "Fuzzing results are inherently random." |
 | `ini_trunc` | stops at 41 edges, below the others | a harness problem, not an exhausted program. P18: "If the coverage is not increasing anymore ... maybe there's a bug in our harness." |
 | `checksum` | flat at 5 edges from the start | nothing to explore: stop |
-| tcpdump | 5,480 → 7,274 edges, still climbing after 1 hour, 0 crashes | keep going. Yet the 19 crashing captures show bugs are there. |
+| tcpdump | TODO: add the Fuzzing101 run's curve | |
 
 **3c. Design the status screen (4 min, pairs).** "What one thing could the status screen show that would make you confident enough to stop?" Then compare with the study: run overnight and stop if nothing new (P15), a fixed 24 hours because benchmarks use it (10/18), P8's "the frequency with which the fuzzer hits each path" (Tuesday's AFLFast table), and the study's suggestion: detailed, actionable runtime output.
 
@@ -133,9 +188,8 @@ Scenario: "Your team has 2 weeks to harden a new PNG decoder written in C." Team
 | `target/harness_*.c` | `ini`, `ini_trunc`, `ini_buggy`, `checksum` |
 | `seeds/` | starting inputs (`ini_small` is for `ini_buggy`) |
 | `build/` | built by `make` when the Codespace is created |
-| `results/` | pre-recorded 10-minute runs (Linux, AFL++ 4.09c), and a 1-hour tcpdump run (stats only) |
-| `tcpdump/crashes/` | 19 captures that crash tcpdump 4.9.2 |
-| `/opt/tcpdump/` | tcpdump 4.9.2 + libpcap 1.8.0 built with AFL++ and ASAN (in the image) |
+| `results/` | pre-recorded 10-minute runs (Linux, AFL++ 4.09c) |
+| `~/fuzzing_tcpdump/` | tcpdump 4.9.2 + libpcap 1.8.0, set up as in Fuzzing101 exercise 3 (in the image) |
 | `scripts/` | our helpers, not AFL++: `triage.sh`, `plot.py`, `record_results.sh` |
 
 ## Before class
