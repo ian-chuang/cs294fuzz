@@ -65,9 +65,71 @@ Make the terminal panel big (AFL++ needs 80×25), then:
 afl-fuzz -i seeds/ini -o runs/live -- build/fuzz_ini
 ```
 
-Leave it running; you come back to it in objective 3. Point out: **corpus count** (Tuesday's "population"), **saved crashes**, **exec speed**, **map density / edges** (coverage). Then `ls runs/live/default/` in a second terminal (the + in the terminal panel): `queue/`, `crashes/`, `hangs/`, `fuzzer_stats`.
+Leave it running; you come back to it in objective 3.
 
-**Prompt:** "Write down two numbers on this screen you can't explain." Don't answer yet.
+**How to present the screen: don't explain all of it.** The screen is the point P12 makes later ("famously inscrutable"), so say so up front: "Most of this you can ignore. Four questions matter, and each has one or two numbers." Point at those, in this order, then give the prompt. A sample screen 2 seconds in:
+
+```
+american fuzzy lop ++4.09c {default} (build/fuzz_ini) [fast]
+┌─ process timing ────────────────────────────────────┬─ overall results ────┐
+│        run time : 0 days, 0 hrs, 0 min, 2 sec       │  cycles done : 0     │
+│   last new find : 0 days, 0 hrs, 0 min, 0 sec       │ corpus count : 35    │
+│last saved crash : 0 days, 0 hrs, 0 min, 1 sec       │saved crashes : 3     │
+│ last saved hang : none seen yet                     │  saved hangs : 0     │
+├─ cycle progress ─────────────────────┬─ map coverage┴──────────────────────┤
+│  now processing : 0.0 (0.0%)         │    map density : 25.49% / 37.25%    │
+│  runs timed out : 0 (0.00%)          │ count coverage : 7.97 bits/tuple    │
+├─ stage progress ─────────────────────┼─ findings in depth ─────────────────┤
+│  now trying : splice 8               │ favored items : 1 (2.86%)           │
+│ stage execs : 14/24 (58.33%)         │  new edges on : 7 (20.00%)          │
+│ total execs : 1347                   │ total crashes : 3 (3 saved)         │
+│  exec speed : 714.4/sec              │  total tmouts : 11 (0 saved)        │
+├─ fuzzing strategy yields ────────────┴─────────────┬─ item geometry ───────┤
+│   bit flips : disabled (default, enable with -D)   │    levels : 2         │
+│  byte flips : disabled (default, enable with -D)   │   pending : 35        │
+│ arithmetics : disabled (default, enable with -D)   │  pend fav : 1         │
+│  known ints : disabled (default, enable with -D)   │ own finds : 34        │
+│  dictionary : n/a                                  │  imported : 0         │
+│havoc/splice : 33/0, 3/120                          │ stability : 100.00%   │
+│py/custom/rq : unused, unused, unused, unused       ├───────────────────────┘
+│    trim/eff : 22.39%/21, disabled                  │             [cpu:150%]
+└─ strategy: explore ────────── state: started :-) ──┘
+```
+
+| Question | Where to point | What to say |
+|---|---|---|
+| 1. Is it running fast enough? | `exec speed : 714.4/sec`, `total execs : 1347` | It runs the program about 700 times a second: start, feed one input, exit. Tuesday's notebook managed far fewer. Speed is the one number every user watches. |
+| 2. What has it kept? | `corpus count : 35` | **Tuesday's population.** Started with 1 seed; 34 mutated inputs were kept because each reached code no earlier input had (that's `own finds : 34`). They are files in `runs/live/default/queue/`. |
+| 3. How much of the program has it reached? | `map density : 25.49% / 37.25%` | The "map" is AFL++'s record of which **edges** (jumps between blocks of code, Tuesday's branch coverage) were taken. This program has 102 edges (`total_edges` in `fuzzer_stats`). The right-hand number is the important one: all inputs together have reached 37% of them. (The left is just the input being mutated right now.) |
+| 4. Has it found anything, and is it still finding things? | `saved crashes : 3`, `last new find`, `last saved crash` | 3 crashing inputs saved in `crashes/`. *Saved* crashes are one per new path, not one per bug (objective 2). `last new find` is how long since it last kept a new input: when that keeps growing, it has stopped making progress (objective 3). |
+
+Then connect two more to Tuesday, briefly:
+
+- **`[fast]` in the title bar is the power schedule** from Tuesday's AFLFast paper: AFL++ uses AFLFast's FAST schedule by default, giving more mutations to inputs on rarely-taken paths.
+- **`levels : 2` is the family tree.** The seed is level 1, its mutants level 2, their mutants level 3. The queue file names record each input's parent (`src:`) and mutation (`op:`); you'll read those later.
+
+**If students ask about the rest** (have these ready, but don't volunteer them):
+
+| Field | Meaning |
+|---|---|
+| `cycles done` | complete passes over the whole queue. A "cycle" of 0 just means it hasn't finished the first pass. |
+| `now processing : 0.0` | which queue entry is being mutated (entry 0, the seed), `.` if it is favored (`*` if not), then how many times it has been fuzzed before (0). |
+| `now trying`, `stage execs` | the mutation strategy running right now (`havoc`: random stacked mutations; `splice`: glue two inputs together) and its progress. |
+| `runs timed out`, `total tmouts : 11 (0 saved)` | runs that hit the time limit. They are saved as hangs only if they also time out on a longer limit. |
+| `count coverage` | how varied the hit *counts* are per edge (AFL++ also rewards running a loop 4 times instead of 1). |
+| `favored items` | the smallest set of inputs that together cover every edge seen; these get mutated most. |
+| `new edges on` | how many kept inputs reached a brand-new edge (the rest only changed hit counts). |
+| `bit flips` … `known ints` | the old deterministic mutation stages, off by default in AFL++ 4 (`-D` turns them on). |
+| `havoc/splice : 33/0, 3/120` | new inputs found / executions, per strategy: splice found 3 in 120 runs. Executions are added when a stage finishes, so havoc's `/0` only means its first stage is still running. |
+| `trim/eff` | AFL++ shortens each kept input before mutating it; 22% of the bytes were removable. |
+| `pending`, `pend fav` | queue entries not fuzzed yet (all, and favored ones). |
+| `imported` | inputs taken from other fuzzers running in parallel (none: we run one). |
+| `stability` | does the same input always take the same path? 100% means yes. Lower means randomness or global state in the target. |
+| `strategy: explore`, `[cpu:150%]` | AFL++'s mode (explore before exploit), and CPU use. |
+
+**Show where the numbers live (1 min).** In a second terminal (the + in the terminal panel): `ls runs/live/default/` (`queue/`, `crashes/`, `hangs/`, `fuzzer_stats`), then `cat runs/live/default/fuzzer_stats`: the same numbers as `name : value` lines (`corpus_count`, `saved_crashes`, `execs_per_sec`, `edges_found`). That file is what `plot.py` and any custom script reads.
+
+**Prompt:** "Write down two numbers on this screen you can't explain." Don't answer yet; it comes back in objective 3 with P12's quote. Expect them to pick the ones in the "if students ask" table.
 
 ## 13–20 · Reproduce a crash by hand: ASAN
 
