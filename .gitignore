@@ -1,0 +1,5 @@
+# built by make, and your own fuzzing runs (runs/ itself is kept: afl-fuzz won't create it)
+build/
+runs/*
+!runs/.gitkeep
+.DS_Store

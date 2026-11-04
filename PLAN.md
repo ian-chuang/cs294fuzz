@@ -100,7 +100,7 @@ Answer: 11 crash files are 3 bugs. 5 × SEGV at `minilib.c:120` (a `key=value` l
 4. Pairs: one-line fix (`malloc(INI_KEY_MAX + 1)` at line 90, or `malloc(klen + 1)`).
 5. Reveal P9: "more of a starter. I take that input and use other tools to figure out where the bug is." Count how many tools you used that were not the fuzzer.
 
-**Stretch for pairs who finish early: real code.** `scripts/triage.sh tcpdump tcpdump/crashes`: 19 capture files that crash tcpdump 4.9.2 (from tcpdump 4.9.3's regression tests, the release that fixed them). How many distinct bugs? Are the two `bgp-*` files one bug or two?
+**Stretch for pairs who finish early: real code.** `scripts/triage.sh tcpdump tcpdump/crashes`: 19 capture files that crash tcpdump 4.9.2 (from tcpdump 4.9.3's regression tests, the release that fixed them). How many distinct bugs? All 19 are heap over-reads, at 17 different lines in 16 functions. The two `icmp-*` files and the two `smb_*` files crash on the same line. The two `bgp-*` files (`print-bgp.c:2345` and `:2354`) and the two `vrrp-*` files (`:146` and `:154`) are in the same function but on different lines: one bug or two? The file names help here, but a fuzzer's crash files have no such names.
 
 ## 54–65 · Objective 3: monitoring, and deciding when to stop
 

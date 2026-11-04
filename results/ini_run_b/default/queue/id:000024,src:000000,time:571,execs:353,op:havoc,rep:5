@@ -1,0 +1,6 @@
+[server]
+st
+poÿÿÿ080st
+port=8180
+
+[db.primary.replica]

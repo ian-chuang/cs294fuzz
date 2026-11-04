@@ -1,0 +1,10 @@
+# environment variables:
+AFL_CUSTOM_INFO_PROGRAM=install/sbin/tcpdump
+AFL_CUSTOM_INFO_PROGRAM_ARGV=-vvvvXX -ee -nn -r @@
+AFL_CUSTOM_INFO_OUT=out/default
+AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+AFL_NO_AFFINITY=1
+AFL_NO_UI=1
+AFL_SKIP_CPUFREQ=1
+# command line:
+'afl-fuzz' '-m' 'none' '-i' 'tcpdump-4.9.2/tests/' '-o' 'out' '-s' '123' '-V' '3600' '--' 'install/sbin/tcpdump' '-vvvvXX' '-ee' '-nn' '-r' '@@'

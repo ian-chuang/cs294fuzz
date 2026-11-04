@@ -1,0 +1,15 @@
+{
+  "name": "CS294 fuzzing (AFL++)",
+  "build": { "dockerfile": "Dockerfile" },
+  "features": { "ghcr.io/devcontainers/features/sshd:1": {} },
+  "hostRequirements": { "cpus": 2 },
+  "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
+  "containerEnv": {
+    "AFL_SKIP_CPUFREQ": "1",
+    "AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES": "1",
+    "AFL_NO_AFFINITY": "1",
+    "ASAN_SYMBOLIZER_PATH": "/usr/lib/llvm-17/bin/llvm-symbolizer"
+  },
+  "postCreateCommand": "make",
+  "customizations": { "codespaces": { "openFiles": ["README.md"] } }
+}
