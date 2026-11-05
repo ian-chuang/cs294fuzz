@@ -8,6 +8,10 @@ RUN apt-get update \
       lld-17 flex bison libssl-dev \
  && rm -rf /var/lib/apt/lists/*
 
+# Ubuntu sets DEBUGINFOD_URLS in login shells, which makes ASAN's llvm-symbolizer (and gdb)
+# download debug info from the internet on the first crash report: minutes instead of 0.1 s.
+RUN rm -f /etc/profile.d/debuginfod.sh /etc/profile.d/debuginfod.csh
+
 # A real target, set up as in Fuzzing101 exercise 3 (CVE-2017-13028): tcpdump 4.9.2 and
 # libpcap 1.8.0 from GitHub, built with afl-clang-lto and ASAN in ~/fuzzing_tcpdump.
 # Two differences, because this is LLVM 17 and the exercise used LLVM 11:
