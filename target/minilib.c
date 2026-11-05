@@ -130,71 +130,15 @@ fail:       /* every error above jumps here: clean up and report "invalid" */
     return -1;
 }
 
-/* ---------- URL decoding ---------- */
+/* ---------- paths ---------- */
 
-/* Value of one hex digit: '7' -> 7, 'a' or 'A' -> 10. -1 if c is not a hex digit. */
-static int hexval(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return -1;
-}
-
-/* URL encoding: "%2C" means the byte 0x2C (','), and '+' means a space.
- * in has len bytes (not necessarily '\0'-terminated); out has room for outcap. */
-int url_decode(const char *in, size_t len, char *out, size_t outcap) {
-    size_t o = 0;                       /* how many bytes written to out so far */
-    for (size_t i = 0; i < len; i++) {
-        if (o + 1 >= outcap) return -1; /* keep room for the final '\0' */
-        if (in[i] == '%') {
-            /* "%XY": the next two characters are hex digits of one byte. */
-            int hi = hexval(in[i + 1]);
-            int lo = hexval(in[i + 2]);
-            if (hi < 0 || lo < 0) return -1;
-            out[o++] = (char)(hi * 16 + lo);
-            i += 2;                     /* skip the two hex digits */
-        } else if (in[i] == '+') {
-            out[o++] = ' ';
-        } else {
-            out[o++] = in[i];
-        }
-    }
-    out[o] = '\0';
-    return (int)o;
-}
-
-/* ---------- the rest of the library ---------- */
-
-/* Adler-32 checksum: two running sums, a (sum of bytes) and b (sum of the
- * values of a), both kept below 65521. They are packed into one 32-bit
- * number, b in the top 16 bits and a in the bottom 16. */
-unsigned checksum(const unsigned char *data, size_t len) {
-    unsigned a = 1, b = 0;
-    for (size_t i = 0; i < len; i++) {
-        a = (a + data[i]) % 65521;
-        b = (b + a) % 65521;
-    }
-    return (b << 16) | a;
-}
-
-/* 1234 -> "$12.34", -5 -> "-$0.05". Returns what snprintf returns: the
- * length the text would have, and snprintf never writes more than cap bytes. */
-int format_cents(long cents, char *buf, size_t cap) {
-    int neg = cents < 0;
-    if (neg) cents = -cents;            /* work with a positive number */
-    /* cents / 100 = whole dollars, cents % 100 = the two-digit remainder */
-    return snprintf(buf, cap, "%s$%ld.%02ld", neg ? "-" : "", cents / 100, cents % 100);
-}
-
-/* A fixed table of (name, id) pairs. */
-static const struct { const char *name; int id; } USERS[] = {
-    {"admin", 1}, {"alice", 2}, {"bob", 3}, {"carol", 4}, {"dave", 5}, {"erin", 6},
-};
-
-/* Linear search through the table. name must be a '\0'-terminated string. */
-int lookup_user(const char *name) {
-    /* sizeof USERS / sizeof USERS[0] = number of entries in the table */
-    for (size_t i = 0; i < sizeof USERS / sizeof USERS[0]; i++)
-        if (strcmp(USERS[i].name, name) == 0) return USERS[i].id;
-    return -1;
+/* "docs" + "/" + "a.txt" -> "docs/a.txt", followed by a '\0'. */
+int join_path(const char *dir, const char *file, char *out, size_t outcap) {
+    size_t dlen = strlen(dir), flen = strlen(file);
+    if (dlen + flen + 1 > outcap) return -1;    /* room for both names and the '\0' */
+    memcpy(out, dir, dlen);
+    out[dlen] = '/';
+    memcpy(out + dlen + 1, file, flen);
+    out[dlen + 1 + flen] = '\0';
+    return (int)(dlen + 1 + flen);
 }

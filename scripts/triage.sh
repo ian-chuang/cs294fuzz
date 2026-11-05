@@ -4,10 +4,10 @@
 # AddressSanitizer report that matter: what went wrong, and where.
 #   scripts/triage.sh <harness> <dir-or-files...>
 # Examples:
-#   scripts/triage.sh ini results/ini_run_a/default/crashes
+#   scripts/triage.sh ini results/ini/default/crashes
 #   scripts/triage.sh tcpdump ~/fuzzing_tcpdump/out/default/crashes
 cd "$(dirname "$0")/.."
-harness=${1:?usage: triage.sh <harness: ini|ini_trunc|ini_buggy|checksum|tcpdump> <dir-or-files...>}
+harness=${1:?usage: triage.sh <harness: ini|ini2|join|tcpdump> <dir-or-files...>}
 shift
 
 export ASAN_OPTIONS=detect_leaks=0

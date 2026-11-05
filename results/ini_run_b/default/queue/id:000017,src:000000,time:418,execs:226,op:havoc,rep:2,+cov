@@ -1,6 +1,0 @@
-[server]
-
-ost=loost
-port=8080
-
-[db.lrimary.replica]h

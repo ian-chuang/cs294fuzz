@@ -1,9 +1,0 @@
-[server]
-host=loost
-port=8080
-
-[db.prver]
-host=loost
-port=8080
-
-[db.pimary.replica]

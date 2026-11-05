@@ -1,9 +1,0 @@
-[server]
-host=loost
-port=8080
-
-[db.primar]
-host=loost
-port=8080
-
-[db.py.replica]

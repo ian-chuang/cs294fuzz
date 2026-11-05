@@ -1,0 +1,5 @@
+[serve®]
+host>loost
+port=8080
+
+[db.primafy.replica]

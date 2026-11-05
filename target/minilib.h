@@ -1,4 +1,4 @@
-/* minilib: a small utility library used by an imaginary web app. */
+/* minilib: a small library with two functions to fuzz, parse_ini and join_path. */
 #ifndef MINILIB_H
 #define MINILIB_H
 
@@ -33,17 +33,9 @@ typedef struct {
 int parse_ini(const char *text, size_t len, ini_config *cfg);
 void ini_free(ini_config *cfg);
 
-/* Decode a URL-encoded string ("a%20b+c") into out. Returns the decoded
- * length, or -1 if the input is invalid or does not fit. */
-int url_decode(const char *in, size_t len, char *out, size_t outcap);
-
-/* A simple Fletcher-style checksum of a byte buffer. */
-unsigned checksum(const unsigned char *data, size_t len);
-
-/* Format an amount in cents as "$12.34" (or "-$12.34"). */
-int format_cents(long cents, char *buf, size_t cap);
-
-/* Look up a user id by name in the built-in user table. -1 if unknown. */
-int lookup_user(const char *name);
+/* Join a directory and a file name with a '/': ("docs", "a.txt") -> "docs/a.txt".
+ * dir and file are '\0'-terminated strings; out has room for outcap bytes.
+ * Returns the length of the result, or -1 if it does not fit. */
+int join_path(const char *dir, const char *file, char *out, size_t outcap);
 
 #endif

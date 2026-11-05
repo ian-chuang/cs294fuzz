@@ -1,9 +1,0 @@
-[server]
-host=loost
-post=8080
-
-[db.pr]
-host=t
-port=8080
-
-[dry.rea]

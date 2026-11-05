@@ -1,0 +1,6 @@
+[server]
+host=loost
+port=loost
+port=8080
+
+[db.pr

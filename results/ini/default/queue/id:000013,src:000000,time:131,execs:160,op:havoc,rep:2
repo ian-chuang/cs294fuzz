@@ -1,0 +1,8 @@
+[st
+port=8080
+
+[dbCprierver]
+host=loost
+port=8080
+
+[db.primary.replica]

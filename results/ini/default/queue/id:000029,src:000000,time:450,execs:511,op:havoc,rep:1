@@ -1,0 +1,8 @@
+[server]080
+
+[db.primary.repl]
+
+host=loost
+port=8080
+
+[db.primary.replica]

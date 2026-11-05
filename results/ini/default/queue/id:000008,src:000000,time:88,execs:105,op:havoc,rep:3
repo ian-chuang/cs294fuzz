@@ -1,0 +1,4 @@
+[server]
+hust=loost
+Port=808/ö
+[db.primary.replica]

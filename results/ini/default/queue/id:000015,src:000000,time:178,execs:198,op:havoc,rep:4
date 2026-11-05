@@ -1,0 +1,4 @@
+[server
+host=lmary.ror=8080
+
+[[db.primary.repl]ca]

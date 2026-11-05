@@ -1,0 +1,10 @@
+[server]
+hos=8080
+
+[[db.pri.repl]cst
+port=8080
+
+[dmary.]cst
+port=8080
+
+[db.

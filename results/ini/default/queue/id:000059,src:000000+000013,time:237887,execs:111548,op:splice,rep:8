@@ -1,0 +1,12 @@
+[server]
+host=lo
+pOrt=8080
+#
+#hri0
+port=st
+pOrt=8080
+#&0=0
+#t
+port=8080
+
+[db.

@@ -1,0 +1,6 @@
+[r]
+hostserver]
+host=loost
+uort=8080
+
+[db.primary.replica]
