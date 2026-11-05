@@ -19,14 +19,16 @@ int main(void) {
     /* TODO 1: join_path wants two strings, dir and file. Get them from buf.
      *         Look at the seed first: xxd seeds/join/basic.txt
      *         memchr(s, c, len) searches the first len bytes of s for the byte c, and
-     *         returns a pointer to the first match, or NULL if there isn't one. */
+     *         returns a pointer to the first match, or NULL if there isn't one.
+     *         What if the input isn't in the format you expect? */
     char *dir = buf;
     char *file = "";
 
-    /* TODO 2: make sure dir and file are both '\0'-terminated strings.
-     *         What if the input isn't in the format you expect? */
+    /* TODO 2: a C string runs until the first '\0' byte. Where does dir end right now?
+     *         (buf starts as all 0 bytes, and fread leaves at least one after the input.) */
 
-    /* TODO 3: choose how much room out has. */
+    /* TODO 3: choose how much room out has. join_path's bugs are about running out
+     *         of room. With 4096 bytes, can the fuzzer's input ever fill out? */
     char out[4096];
 
     join_path(dir, file, out, sizeof out);
