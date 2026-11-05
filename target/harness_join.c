@@ -27,8 +27,9 @@ int main(void) {
     /* TODO 2: a C string runs until the first '\0' byte. Where does dir end right now?
      *         (buf starts as all 0 bytes, and fread leaves at least one after the input.) */
 
-    /* TODO 3: choose how much room out has. join_path's bugs are about running out
-     *         of room. With 4096 bytes, can the fuzzer's input ever fill out? */
+    /* TODO 3: choose how much room out has. join_path checks that the result fits
+     *         in outcap, but the fuzzer can only test that check if the names can
+     *         actually get that long. How long can dir + file be here? */
     char out[4096];
 
     join_path(dir, file, out, sizeof out);
