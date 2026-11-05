@@ -15,7 +15,9 @@ Today you'll use a real fuzzer, **AFL++**, on a small C library. Run every comma
 | `results/` | 10-minute runs recorded before class |
 | `scripts/` | our helpers (not part of AFL++) |
 
-## Commands
+The helpers in `scripts/` take the harness name first (`ini`, `ini2` or `join`).
+
+## Tour
 
 **Run a program yourself**
 
@@ -30,7 +32,7 @@ echo $?                                  # exit code: 0 means no crash
 afl-fuzz -i seeds/ini -o runs/live -- build/fuzz_ini
 ```
 
-`-i` is the seed folder, `-o` where to write the results, and after `--` comes the program. Each run needs a new `-o` folder. Open a second terminal (the **+** in the terminal panel) to keep working while it runs.
+`-i` is the seed folder, `-o` where to write the results, and after `--` comes the program. Each run needs a new `-o` folder. Leave this one running, and open a second terminal (the **+** in the terminal panel) to keep working.
 
 **What AFL++ writes** (in `runs/<name>/default/`, and the same in `results/<name>/default/`)
 
@@ -51,17 +53,17 @@ build/fuzz_ini < <file>       # re-run it: ASAN reports what went wrong, and whe
 
 In ASAN's report, read the `ERROR:` line, then the stack (`#0`, `#1`, …): the first frame in `minilib.c` or a harness is where it went wrong.
 
-**Shrink a crash** to a smaller input that still crashes
+**Re-run crashes with our helper**
 
 ```
-afl-tmin -i <file> -o min.ini -- build/fuzz_ini
+scripts/triage.sh ini <folder or files>    # re-run each input, show the error and where
 ```
 
 **Debug it**
 
 ```
 gdb -q --args build/fuzz_ini
-(gdb) break minilib.c:92         # stop at a line (add "if <condition>" to stop only sometimes)
+(gdb) break <file>:<line>        # stop at a line (add "if <condition>" to stop only sometimes)
 (gdb) run < <file>               # start, with the file as input (Tab completes file names)
 (gdb) print <variable>
 (gdb) bt                         # the call stack
@@ -69,19 +71,74 @@ gdb -q --args build/fuzz_ini
 (gdb) quit
 ```
 
-**Rebuild** after you edit anything in `target/`
+## Objective 1: write a harness
+
+Fill in the TODOs in `target/harness_join.c`, then build and fuzz it:
+
+```
+make build/fuzz_join                                   # rebuild after every edit
+build/fuzz_join < seeds/join/basic.txt                 # does it run on the seed?
+afl-fuzz -i seeds/join -o runs/join -- build/fuzz_join
+```
+
+Each new try needs a new `-o` folder (`runs/join2`, …), or delete the old one first with `rm -rf runs/join`.
+
+Re-run a crash it finds, and read the stack: is the bug in `join_path`, or in your harness?
+
+```
+build/fuzz_join < runs/join/default/crashes/<file>
+scripts/triage.sh join runs/join/default/crashes
+```
+
+## Objective 2: from crashes to bugs, and from one crash to a fix
+
+**Triage and group** the recorded crashes
+
+```
+ls results/ini/default/crashes
+scripts/triage.sh ini results/ini/default/crashes
+scripts/group.sh  ini results/ini/default/crashes results/ini/default/hangs   # same error at the same place = one group
+```
+
+**Shrink** a crash to a smaller input that still crashes, then re-run it
+
+```
+afl-tmin -i <file> -o min.ini -- build/fuzz_ini
+cat min.ini
+build/fuzz_ini < min.ini
+```
+
+**Fix** it in `target/minilib.c`, rebuild, and check
+
+```
+make
+build/fuzz_ini < min.ini
+scripts/triage.sh ini results/ini/default/crashes    # which crashes are gone now?
+```
+
+To undo your edits: `git checkout target/minilib.c && make`
+
+## Objective 3: is it still making progress?
+
+**Your live run**: switch back to the terminal running `runs/live`, or read its numbers as text
+
+```
+cat runs/live/default/fuzzer_stats
+```
+
+**Coverage over time** for the two recorded runs: open `results/coverage.png`, or redraw it
+
+```
+scripts/plot.py out.png results/ini results/ini2     # also works on your own runs/<name>
+```
+
+The two harnesses in that plot are `target/harness_ini.c` and `target/harness_ini2.c`.
+
+## Rebuild
+
+After you edit anything in `target/`:
 
 ```
 make                         # everything
 make build/fuzz_join         # one program
 ```
-
-**Our helpers**
-
-```
-scripts/triage.sh ini <folder or files>    # re-run each input, show the error and where
-scripts/group.sh  ini <folder or files>    # the same, grouped: inputs with the same error at the same place
-scripts/plot.py out.png runs/a runs/b      # coverage over time, as a picture
-```
-
-The first argument is the harness (`ini`, `ini2` or `join`).
