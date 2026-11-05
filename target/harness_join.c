@@ -17,7 +17,9 @@ int main(void) {
     size_t n = fread(buf, 1, sizeof buf - 1, stdin);   /* the fuzzer's bytes: n of them */
 
     /* TODO 1: join_path wants two strings, dir and file. Get them from buf.
-     *         Look at the seed (xxd seeds/join/basic.txt). memchr may help. */
+     *         Look at the seed first: xxd seeds/join/basic.txt
+     *         memchr(s, c, len) searches the first len bytes of s for the byte c, and
+     *         returns a pointer to the first match, or NULL if there isn't one. */
     char *dir = buf;
     char *file = "";
 
