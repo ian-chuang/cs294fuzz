@@ -19,19 +19,13 @@ for target in "$@"; do
     # 1. Run it, exactly as by hand (giving up after 5 seconds). Keep only what it prints to stderr.
     if [ "$harness" = tcpdump ]; then
       tcpdump=$HOME/fuzzing_tcpdump/install/sbin/tcpdump    # built as in Fuzzing101 exercise 3
-      cmd=("$tcpdump" -vvvvXX -ee -nn -r "$f"); input=/dev/null
+      ran="$tcpdump -vvvvXX -ee -nn -r $f"
+      out=$(timeout 5 "$tcpdump" -vvvvXX -ee -nn -r "$f" 2>&1 > /dev/null)
     else
-      cmd=("build/fuzz_$harness"); input=$f
+      ran="build/fuzz_$harness < $f"
+      out=$(timeout 5 "build/fuzz_$harness" < "$f" 2>&1 > /dev/null)
     fi
-    ran="${cmd[*]}"; [ "$input" = "$f" ] && ran="$ran < $f"
-    out=$(timeout 5 "${cmd[@]}" < "$input" 2>&1 > /dev/null)
     rc=$?
-    # The first ASAN report after the Codespace starts can take over 5 seconds
-    # (llvm-symbolizer loading from disk), so give a "hang" one more try.
-    if [ $rc -eq 124 ]; then
-      out=$(timeout 5 "${cmd[@]}" < "$input" 2>&1 > /dev/null)
-      rc=$?
-    fi
 
     # 2. Pick out what went wrong and where.
     if [ $rc -eq 124 ]; then
