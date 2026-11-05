@@ -13,8 +13,7 @@ afl-showmap tells us which edges that input covers. Coverage at time t is the
 number of distinct edges covered by all inputs kept up to t. Crashes (from
 default/crashes/, same naming) are marked with an x.
 
-A run saved without its queue/ (e.g. a long tcpdump run, whose queue is tens
-of MB) is drawn from AFL++'s plot_data instead.
+A run saved without its queue/ is drawn from AFL++'s plot_data instead.
 
 Needs afl-showmap (comes with AFL++) and matplotlib. Without matplotlib it
 prints a text table instead.

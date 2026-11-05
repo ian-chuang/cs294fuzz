@@ -5,9 +5,8 @@
 #   scripts/triage.sh <harness> <dir-or-files...>
 # Examples:
 #   scripts/triage.sh ini results/ini/default/crashes
-#   scripts/triage.sh tcpdump ~/fuzzing_tcpdump/out/default/crashes
 cd "$(dirname "$0")/.."
-harness=${1:?usage: triage.sh <harness: ini|ini2|join|tcpdump> <dir-or-files...>}
+harness=${1:?usage: triage.sh <harness: ini|ini2|join> <dir-or-files...>}
 shift
 
 export ASAN_OPTIONS=detect_leaks=0
@@ -17,14 +16,8 @@ for target in "$@"; do
   else files=$target; fi
   for f in $files; do
     # 1. Run it, exactly as by hand (giving up after 5 seconds). Keep only what it prints to stderr.
-    if [ "$harness" = tcpdump ]; then
-      tcpdump=$HOME/fuzzing_tcpdump/install/sbin/tcpdump    # built as in Fuzzing101 exercise 3
-      ran="$tcpdump -vvvvXX -ee -nn -r $f"
-      out=$(timeout 5 "$tcpdump" -vvvvXX -ee -nn -r "$f" 2>&1 > /dev/null)
-    else
-      ran="build/fuzz_$harness < $f"
-      out=$(timeout 5 "build/fuzz_$harness" < "$f" 2>&1 > /dev/null)
-    fi
+    ran="build/fuzz_$harness < $f"
+    out=$(timeout 5 "build/fuzz_$harness" < "$f" 2>&1 > /dev/null)
     rc=$?
 
     # 2. Pick out what went wrong and where.
