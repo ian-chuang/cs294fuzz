@@ -3,18 +3,6 @@
  *     int join_path(const char *dir, const char *file, char *out, size_t outcap);
  *     join_path("docs", "notes.txt", out, sizeof out)  puts "docs/notes.txt" in out
  *
- * The catch: the fuzzer gives you ONE block of bytes (buf, n bytes long), but
- * join_path wants TWO strings. The seed is "docs", a newline, then "notes.txt":
- *     xxd seeds/join/basic.txt
- *
- * Useful pieces of C:
- *     char *p = memchr(buf, '\n', n);   looks at the first n bytes of buf for a '\n';
- *                                       returns a pointer to the first one, or NULL
- *                                       if there is none (it doesn't stop at a 0 byte,
- *                                       unlike strchr)
- *     *p = '\0';                        ends a string at p; p + 1 starts the next one
- *     return 0;                         skips an input that isn't in your format
- *
  * Build and fuzz it:
  *     make build/fuzz_join
  *     afl-fuzz -i seeds/join -o runs/join -- build/fuzz_join
@@ -28,14 +16,25 @@ int main(void) {
     static char buf[4096];   /* static, so it starts as all 0 bytes */
     size_t n = fread(buf, 1, sizeof buf - 1, stdin);   /* the fuzzer's bytes: n of them, then a 0 byte */
 
-    /* TODO 1: join_path wants two strings, dir and file. Get them from buf. */
+    /* TODO 1: join_path wants two strings, dir and file, but the fuzzer gives you
+     *         one block of bytes. Split buf in two.
+     *         Look at the seed first: xxd seeds/join/basic.txt  ("docs", a newline, "notes.txt")
+     *         Find the newline with
+     *             char *p = memchr(buf, '\n', n);
+     *         memchr looks at the first n bytes of buf for the byte '\n' and returns
+     *         a pointer to the first one, or NULL if there is none. (Unlike strchr,
+     *         it doesn't stop early at a 0 byte.) dir starts at buf, file just after p. */
     char *dir = buf;
     char *file = "";
 
     /* TODO 2: make sure dir and file are both '\0'-terminated strings.
-     *         What should happen if the input has no newline at all? */
+     *         *p = '\0';  ends dir at the newline. file already ends at the 0 byte after the input.
+     *         If memchr returned NULL, the input has no newline: it isn't in your format.
+     *         Skip it with  return 0;  (don't crash: a crash here is your bug, not join_path's). */
 
-    /* TODO 3: choose how much room out has. Could join_path ever run out of room? */
+    /* TODO 3: choose how much room out has.
+     *         join_path checks the names fit in outcap. With 4096 bytes and at most
+     *         4095 bytes of input, could they ever not fit? What size would test that check? */
     char out[4096];
 
     join_path(dir, file, out, sizeof out);
